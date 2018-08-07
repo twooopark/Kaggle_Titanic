@@ -35,6 +35,7 @@ test['Title'].value_counts()
 title_mapping = {"Mr": 0, "Miss": 1, "Mrs": 2,
                  "Master": 3, "Dr": 3, "Rev": 3, "Col": 3, "Major": 3, "Mlle": 3,"Countess": 3,
                  "Ms": 3, "Lady": 3, "Jonkheer": 3, "Don": 3, "Dona" : 3, "Mme": 3,"Capt": 3,"Sir": 3 }
+
 for dataset in train_test_data:
     dataset['Title'] = dataset['Title'].map(title_mapping)
 
@@ -143,6 +144,7 @@ print(train_data.head())
 
 # Importing Classifier Modules
 from sklearn.model_selection import GridSearchCV
+from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
@@ -200,17 +202,17 @@ print(score)
 print("SVC: ",round(np.mean(score)*100,2))
 
 
-
 # CV + Random Forest
 def RF_Best():
-    estimator_grid = np.arange(1, 30, 3)
-    depth_grid = np.arange(1, 20, 2)
+    estimator_grid = np.arange(15, 22, 1)
+    depth_grid = np.arange(4, 6, 1)
     parameters = {'n_estimators': estimator_grid, 'max_depth': depth_grid}
     gridCV = GridSearchCV(RandomForestClassifier(), param_grid=parameters, cv=10)
     gridCV.fit(train_data, target)
     best_n_estim = gridCV.best_params_['n_estimators']
     best_depth = gridCV.best_params_['max_depth']
     print("best: ",best_depth, best_n_estim)
+
     RF_best = RandomForestClassifier(max_depth=best_depth,n_estimators=best_n_estim,random_state=3)
     # RF_best.fit(train_data, target)
     score = cross_val_score(RF_best, train_data, target, cv=k_fold, n_jobs=1, scoring=scoring)
@@ -235,8 +237,8 @@ def RF_Best():
 
 # CV + AdaBoost
 def AB_Best():
-    estimator_grid = np.arange(30, 80, 10)
-    learning_rate_grid = np.array([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9])
+    estimator_grid = np.arange(50, 80, 2)
+    learning_rate_grid = np.array([0.1,0.2,0.25,0.3,0.35,0.4,0.5])
     parameters = {'n_estimators': estimator_grid, 'learning_rate': learning_rate_grid}
     gridCV = GridSearchCV(AdaBoostClassifier(), param_grid=parameters, cv=10)
     gridCV.fit(train_data, target)
@@ -252,6 +254,41 @@ def AB_Best():
     print("AdaBoost: ",round(np.mean(score)*100, 2))
 
     clf = AdaBoostClassifier(n_estimators=best_n_estim, learning_rate=best_learn_rate, random_state=3)
+    clf.fit(train_data, target)
+
+    test_data = test.drop("PassengerId", axis=1).copy()
+    prediction = clf.predict(test_data)
+
+    submission = pd.DataFrame({
+        "PassengerId": test["PassengerId"],
+        "Survived": prediction
+    })
+
+    submission.to_csv('submission.csv', index=False)
+    submission = pd.read_csv('submission.csv')
+    submission.head()
+
+
+# CV + SVM
+def SVM_Best():
+    C_grid = [0.001, 0.01, 0.3, 1, 3]
+    gamma_grid = [0.001, 0.03, 0.1, 0.3]
+    parameters = {'C': C_grid, 'gamma': gamma_grid}
+    gridCV = GridSearchCV(SVC(kernel='rbf'), parameters, cv=10);
+    gridCV.fit(train_data, target)
+    best_C = gridCV.best_params_['C']
+    best_gamma = gridCV.best_params_['gamma']
+
+    print("SVM best C : " + str(best_C))
+    print("SVM best gamma : " + str(best_gamma))
+
+    SVM_best = SVC(C=best_C, gamma=best_gamma)
+    SVM_best.fit(train_data, target)
+    score = cross_val_score(SVM_best, train_data, target, cv=k_fold, n_jobs=1, scoring=scoring)
+    print(score)
+    print("SVM best: ",round(np.mean(score)*100, 2))
+
+    clf = SVC(C=best_C, gamma=best_gamma)
     clf.fit(train_data, target)
 
     test_data = test.drop("PassengerId", axis=1).copy()
@@ -284,4 +321,6 @@ def result():
     submission.head()
 
 
-AB_Best()
+RF_Best()
+# AB_Best()
+# SVM_Best()
